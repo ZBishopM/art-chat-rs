@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest] # Puedes añadir ubuntu-latest o macos-latest aquí
+        platform: [windows-latest, ubuntu-22.04, macos-latest] # Puedes añadir ubuntu-latest o macos-latest aquí
 
     runs-on: ${{ matrix.platform }}
 
@@ -28,7 +28,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -43,6 +43,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Art Chat v__VERSION__"
-          releaseBody: "¡Versión para Windows lista!"
+          releaseBody: "See the assets to download this version and install"
           releaseDraft: true
           prerelease: false
