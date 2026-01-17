@@ -16,11 +16,11 @@ struct ChatConnection {
 #[tauri::command]
 async fn send_message(state: State<'_, ChatConnection>, msg: String) -> Result<(), String> {
     let mut sender_guard = state.sender.lock().await;
-    
+
     if let Some(sender) = sender_guard.as_mut() {
         // FIX 1: Convertimos el String a "Utf8Bytes" usando .into()
         let message = tokio_tungstenite::tungstenite::Message::Text(msg.clone().into());
-        
+
         match sender.send(message).await {
             Ok(_) => {
                 println!("📤 Enviado: {}", msg);
@@ -40,30 +40,30 @@ async fn send_message(state: State<'_, ChatConnection>, msg: String) -> Result<(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(ChatConnection { sender: Mutex::new(None) }) 
+        .manage(ChatConnection { sender: Mutex::new(None) })
         .setup(|app| {
             let app_handle = app.handle().clone();
-            
+
             tauri::async_runtime::spawn(async move {
                 println!("⏳ Conectando al servidor...");
-                
+
                 // --- TU IP AQUÍ ---
                 // Asegúrate de que esta IP es la correcta de tu laptop
-                let url = Url::parse("ws://100.48.213.255:8080").expect("URL inválida"); 
+                let url = Url::parse("ws://100.48.213.255:8080").expect("URL inválida");
                 // ------------------
 
                 // FIX 2: Pasamos 'url.as_str()' en vez de 'url' directo
                 match tokio_tungstenite::connect_async(url.as_str()).await {
                     Ok((ws_stream, _)) => {
-                        println!("✅ ¡Conectado a la Laptop!");
+                        println!("✅ ¡Conectado a VPS!");
                         // --- NUEVO: AVISAR AL FRONTEND ---
                         app_handle.emit("connection-status", "connected").unwrap();
                         // ---------------------------------
                         let (write, mut read) = ws_stream.split();
-                        
+
                         let state = app_handle.state::<ChatConnection>();
                         *state.sender.lock().await = Some(write);
-                        
+
                         while let Some(msg) = read.next().await {
                             // FIX 3: Capturamos 'text' que ahora es Utf8Bytes
                             if let Ok(tokio_tungstenite::tungstenite::Message::Text(text)) = msg {
@@ -79,7 +79,7 @@ pub fn run() {
                     }
                 }
             });
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![send_message])

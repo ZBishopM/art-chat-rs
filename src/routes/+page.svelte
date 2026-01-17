@@ -55,7 +55,7 @@
   localStorage.setItem("artchat_id", JSON.stringify(myId));
 
   let soundEnabled = load('artchat_sound', true); // Por defecto activado
-  
+
   // Guardar preferencia automáticamente
   $: localStorage.setItem('artchat_sound', JSON.stringify(soundEnabled));
 
@@ -263,20 +263,20 @@
   /*$: {
     // Si hay cambio de velocidad o se inicializa...
     if (fadeIntervalId) clearInterval(fadeIntervalId);
-    
+
     // SIEMPRE corremos el intervalo en la capa Fade, pero solo borra si hay algo.
     // Usamos 'destination-out' para borrar hacia transparencia.
     fadeIntervalId = window.setInterval(() => {
         if (!ctxFade) return;
-        
+
         ctxFade.globalCompositeOperation = 'destination-out';
-        // Ajustamos la opacidad del borrado. 
+        // Ajustamos la opacidad del borrado.
         // Cuanto MENOR es fadeSpeed (más rápido), MÁS borramos (0.2).
         // Cuanto MAYOR es fadeSpeed (más lento), MENOS borramos (0.05).
         // (O simplemente usamos un valor fijo y dejamos que la velocidad del intervalo mande)
-        ctxFade.fillStyle = `rgba(0, 0, 0, 0.1)`; 
+        ctxFade.fillStyle = `rgba(0, 0, 0, 0.1)`;
         ctxFade.fillRect(0, 0, canvasFade.width, canvasFade.height);
-        
+
         ctxFade.globalCompositeOperation = 'source-over';
     }, fadeSpeed);
   }*/
@@ -512,8 +512,8 @@
       placeholder="Tu Nick"
       style="width: 80px; background: #333; color: cyan; border: 1px solid #555; padding: 5px; border-radius: 4px; text-align: center;"
     />
-    <button 
-        on:click={() => soundEnabled = !soundEnabled} 
+    <button
+        on:click={() => soundEnabled = !soundEnabled}
         title={soundEnabled ? "Silenciar" : "Activar Sonido"}
         style="background: none; border: none; cursor: pointer; font-size: 1.2rem;"
     >
