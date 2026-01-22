@@ -46,6 +46,7 @@ pub fn run() {
 
             tauri::async_runtime::spawn(async move {
                 println!("⏳ Conectando al servidor...");
+                app_handle.emit("connection-status", "connecting").ok();
 
                 // --- TU IP AQUÍ ---
                 // Asegúrate de que esta IP es la correcta de tu laptop
