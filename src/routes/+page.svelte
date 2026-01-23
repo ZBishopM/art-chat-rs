@@ -480,6 +480,49 @@
         } else if (data.type === "buzz") {
           messages = [...messages, `⚡ ${data.nickname || "Alguien"} te envió un zumbido!`];
           triggerBuzzEffect();
+        } else if (data.type === "history") {
+          // Aplicar historial de dibujos
+          if (data.strokes && data.strokes.length > 0) {
+            console.log(`📜 Cargando ${data.strokes.length} strokes del historial`);
+
+            // Calcular el tamaño máximo necesario para el historial
+            let historyMaxX = maxWidth;
+            let historyMaxY = maxHeight;
+            data.strokes.forEach((stroke: any) => {
+              historyMaxX = Math.max(historyMaxX, stroke.x0, stroke.x1);
+              historyMaxY = Math.max(historyMaxY, stroke.y0, stroke.y1);
+            });
+
+            // Expandir buffer si el historial requiere más espacio
+            if (historyMaxX > maxWidth || historyMaxY > maxHeight) {
+              const oldBuffer = document.createElement("canvas");
+              oldBuffer.width = maxWidth;
+              oldBuffer.height = maxHeight;
+              oldBuffer.getContext("2d")?.drawImage(bufferCanvas, 0, 0);
+
+              maxWidth = Math.max(maxWidth, historyMaxX + 100);
+              maxHeight = Math.max(maxHeight, historyMaxY + 100);
+              bufferCanvas.width = maxWidth;
+              bufferCanvas.height = maxHeight;
+              bufferCtx = bufferCanvas.getContext("2d");
+              bufferCtx?.drawImage(oldBuffer, 0, 0);
+
+              console.log(`📐 Buffer expandido a ${maxWidth}x${maxHeight} para historial`);
+            }
+
+            // Dibujar strokes del historial
+            data.strokes.forEach((stroke: any) => {
+              drawRemote(stroke, false);
+            });
+          }
+          // Aplicar historial de mensajes
+          if (data.messages && data.messages.length > 0) {
+            console.log(`📜 Cargando ${data.messages.length} mensajes del historial`);
+            const historyMessages = data.messages.map((m: any) =>
+              `[hist] ${m.nickname}: ${m.content}`
+            );
+            messages = [...historyMessages, ...messages];
+          }
         }
       } catch (e) {
         console.error("Error JSON:", e);
