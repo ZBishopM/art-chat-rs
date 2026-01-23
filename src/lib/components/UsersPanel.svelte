@@ -98,4 +98,45 @@
     background-color: #ff0000;
     box-shadow: 0 0 8px #ff0000;
   }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .users-panel {
+      top: auto;
+      bottom: 10px;
+      right: 10px;
+      width: 140px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .panel-title {
+      font-size: 0.7rem;
+    }
+
+    .user-row {
+      font-size: 0.8rem;
+      padding: 3px 0;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .users-panel {
+      width: 100px;
+      max-height: 100px;
+    }
+
+    .user-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 70px;
+    }
+  }
 </style>

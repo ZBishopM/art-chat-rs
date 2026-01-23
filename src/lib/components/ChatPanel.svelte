@@ -3,11 +3,12 @@
 
   export let messages: string[] = [];
 
-  const dispatch = createEventDispatcher<{ send: string }>();
+  const dispatch = createEventDispatcher<{ send: string; buzz: void }>();
 
   let chatInput = "";
   let messagesContainer: HTMLDivElement;
   let isCollapsed = localStorage.getItem('artchat_chat_collapsed') === 'true';
+  let buzzCooldown = false;
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter") sendMessage();
@@ -17,6 +18,13 @@
     if (!chatInput.trim()) return;
     dispatch('send', chatInput);
     chatInput = "";
+  }
+
+  function sendBuzz() {
+    if (buzzCooldown) return;
+    dispatch('buzz');
+    buzzCooldown = true;
+    setTimeout(() => buzzCooldown = false, 3000); // Cooldown de 3 segundos
   }
 
   function toggleCollapse() {
@@ -56,6 +64,15 @@
         placeholder="Escribe algo..."
       />
       <button on:click={sendMessage}>Enviar</button>
+      <button
+        class="buzz-btn"
+        class:cooldown={buzzCooldown}
+        on:click={sendBuzz}
+        title={buzzCooldown ? "Espera..." : "Enviar zumbido"}
+        disabled={buzzCooldown}
+      >
+        📳
+      </button>
     </div>
   </div>
 {/if}
@@ -167,5 +184,56 @@
 
   .input-area button:hover {
     background: #666;
+  }
+
+  .buzz-btn {
+    background: #ff6600 !important;
+    padding: 5px 8px !important;
+  }
+
+  .buzz-btn:hover:not(:disabled) {
+    background: #ff8833 !important;
+  }
+
+  .buzz-btn.cooldown {
+    background: #666 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .chat-container {
+      width: calc(100vw - 40px);
+      max-width: 300px;
+      height: 150px;
+      bottom: 10px;
+      left: 10px;
+    }
+
+    .chat-toggle {
+      bottom: 10px;
+      left: 10px;
+    }
+
+    .messages {
+      font-size: 0.8rem;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .chat-container {
+      height: 120px;
+      padding: 8px;
+    }
+
+    .input-area input {
+      font-size: 0.8rem;
+    }
+
+    .input-area button {
+      padding: 5px 8px;
+      font-size: 0.8rem;
+    }
   }
 </style>

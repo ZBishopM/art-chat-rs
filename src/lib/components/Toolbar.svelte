@@ -87,14 +87,16 @@
 <style>
   .toolbar {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    top: 10px;
+    left: 10px;
+    right: 200px;
     background: #1a1a1a;
     padding: 10px;
     border-radius: 8px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
     pointer-events: auto;
     border: 1px solid #444;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -171,5 +173,55 @@
 
   input[type="range"] {
     cursor: pointer;
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .toolbar {
+      right: 10px;
+      top: 10px;
+    }
+
+    .separator {
+      display: none;
+    }
+
+    .nick-input {
+      width: 60px;
+      font-size: 0.8rem;
+    }
+
+    .fade-slider {
+      width: 60px;
+    }
+
+    input[type="range"] {
+      width: 60px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .toolbar {
+      padding: 6px;
+      gap: 5px;
+    }
+
+    .nick-input {
+      width: 50px;
+    }
+
+    .color-picker {
+      width: 25px;
+      height: 25px;
+    }
+
+    .clear-btn {
+      padding: 4px 8px;
+      font-size: 0.9rem;
+    }
+
+    .fade-label {
+      font-size: 0.7rem;
+    }
   }
 </style>

@@ -56,6 +56,7 @@
   // Audio
   let notificationAudio: HTMLAudioElement;
   let connectedAudio: HTMLAudioElement;
+  let buzzAudio: HTMLAudioElement;
 
   // Dibujo
   let isDrawing = false;
@@ -139,6 +140,28 @@
     });
     messages = [...messages, `Yo: ${content}`];
     await invoke("send_message", { msg: payload });
+  }
+
+  async function handleSendBuzz() {
+    const payload = JSON.stringify({
+      type: "buzz",
+      senderId: myId,
+      nickname: myNickname,
+    });
+    messages = [...messages, `⚡ Enviaste un zumbido`];
+    await invoke("send_message", { msg: payload });
+  }
+
+  function triggerBuzzEffect() {
+    if (buzzAudio && soundEnabled) {
+      buzzAudio.currentTime = 0;
+      buzzAudio.play().catch(() => {});
+    }
+    // Efecto de shake
+    document.body.classList.add('buzz-shake');
+    setTimeout(() => {
+      document.body.classList.remove('buzz-shake');
+    }, 500);
   }
 
   async function handleClearCanvas() {
@@ -372,6 +395,8 @@
     notificationAudio.volume = 0.5;
     connectedAudio = new Audio('/connected.mp3');
     connectedAudio.volume = 0.5;
+    buzzAudio = new Audio('/buzz.mp3');
+    buzzAudio.volume = 0.7;
 
     window.addEventListener("resize", handleResize);
     requestAnimationFrame(animationLoop);
@@ -404,6 +429,9 @@
           if (bufferCtx) {
             bufferCtx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
           }
+        } else if (data.type === "buzz") {
+          messages = [...messages, `⚡ ${data.nickname || "Alguien"} te envió un zumbido!`];
+          triggerBuzzEffect();
         }
       } catch (e) {
         console.error("Error JSON:", e);
@@ -465,7 +493,7 @@
     on:toggleSound={() => soundEnabled = !soundEnabled}
   />
 
-  <ChatPanel {messages} on:send={handleSendChat} />
+  <ChatPanel {messages} on:send={handleSendChat} on:buzz={handleSendBuzz} />
 
   <UsersPanel
     users={connectedUsers}
@@ -481,6 +509,16 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
+  }
+
+  :global(body.buzz-shake) {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+    20%, 40%, 60%, 80% { transform: translateX(10px); }
   }
 
   .canvas-wrapper {
