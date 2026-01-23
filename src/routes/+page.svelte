@@ -52,6 +52,8 @@
   let fadeEnabled = load("artchat_fade", false);
   let fadeSpeed = load("artchat_fadespeed", 50);
   let backgroundColor = load("artchat_bgcolor", "#1a1a1a");
+  let onlineColor = load("artchat_online_color", "#00ff00");
+  let busyColor = load("artchat_busy_color", "#ff0000");
 
   // Audio
   let notificationAudio: HTMLAudioElement;
@@ -74,6 +76,8 @@
   $: localStorage.setItem("artchat_fade", JSON.stringify(fadeEnabled));
   $: localStorage.setItem("artchat_fadespeed", JSON.stringify(fadeSpeed));
   $: localStorage.setItem("artchat_bgcolor", JSON.stringify(backgroundColor));
+  $: localStorage.setItem("artchat_online_color", JSON.stringify(onlineColor));
+  $: localStorage.setItem("artchat_busy_color", JSON.stringify(busyColor));
 
   // Fallback: si recibimos usuarios, estamos conectados
   $: if (connectedUsers.length > 0 && connectionState !== 'connected') {
@@ -117,6 +121,44 @@
 
     ctxFade.globalAlpha = 1.0;
     requestAnimationFrame(animationLoop);
+  }
+
+  // --- PERSISTENCIA DE ESTADO ---
+  function saveState() {
+    try {
+      // Guardar canvas como base64
+      if (bufferCanvas) {
+        const canvasData = bufferCanvas.toDataURL('image/png');
+        localStorage.setItem('artchat_canvas', canvasData);
+      }
+      // Guardar mensajes (últimos 100)
+      const recentMessages = messages.slice(-100);
+      localStorage.setItem('artchat_messages', JSON.stringify(recentMessages));
+    } catch (e) {
+      console.warn('No se pudo guardar el estado:', e);
+    }
+  }
+
+  function restoreState() {
+    try {
+      // Restaurar canvas
+      const canvasData = localStorage.getItem('artchat_canvas');
+      if (canvasData && ctxPerm && bufferCtx) {
+        const img = new Image();
+        img.onload = () => {
+          bufferCtx!.drawImage(img, 0, 0);
+          ctxPerm!.drawImage(img, 0, 0);
+        };
+        img.src = canvasData;
+      }
+      // Restaurar mensajes
+      const savedMessages = localStorage.getItem('artchat_messages');
+      if (savedMessages) {
+        messages = JSON.parse(savedMessages);
+      }
+    } catch (e) {
+      console.warn('No se pudo restaurar el estado:', e);
+    }
   }
 
   // --- FUNCIONES DE RED ---
@@ -391,6 +433,12 @@
     bufferCanvas.height = maxHeight;
     bufferCtx = bufferCanvas.getContext("2d");
 
+    // Restaurar estado guardado
+    restoreState();
+
+    // Guardar estado al cerrar
+    window.addEventListener('beforeunload', saveState);
+
     notificationAudio = new Audio('/notify.mp3');
     notificationAudio.volume = 0.5;
     connectedAudio = new Audio('/connected.mp3');
@@ -460,6 +508,8 @@
   });
 
   onDestroy(() => {
+    saveState(); // Guardar al destruir componente
+    window.removeEventListener('beforeunload', saveState);
     unlisten?.();
     unlistenConnection?.();
     if (joinInterval) clearInterval(joinInterval);
@@ -500,6 +550,8 @@
     {myId}
     myNickname={myNickname}
     {myStatus}
+    bind:onlineColor
+    bind:busyColor
     on:toggleStatus={handleToggleStatus}
   />
 </main>

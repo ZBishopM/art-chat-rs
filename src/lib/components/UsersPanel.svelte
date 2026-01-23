@@ -6,26 +6,44 @@
   export let myId: string;
   export let myNickname: string;
   export let myStatus: 'online' | 'busy' = 'online';
+  export let onlineColor: string = '#00ff00';
+  export let busyColor: string = '#ff0000';
 
   const dispatch = createEventDispatcher<{ toggleStatus: void }>();
+
+  function getStatusColor(status: string): string {
+    return status === 'online' ? onlineColor : busyColor;
+  }
 </script>
 
 <div class="users-panel">
-  <div class="panel-title">Usuarios ({users.length})</div>
+  <div class="panel-header">
+    <span class="panel-title">Usuarios ({users.length})</span>
+    <div class="status-colors">
+      <input type="color" bind:value={onlineColor} title="Color online" class="status-color-picker" />
+      <input type="color" bind:value={busyColor} title="Color busy" class="status-color-picker" />
+    </div>
+  </div>
 
   <button
     class="user-row myself"
     on:click={() => dispatch('toggleStatus')}
     title="Click para cambiar estado"
   >
-    <div class="status-dot {myStatus}"></div>
+    <div
+      class="status-dot"
+      style="background-color: {getStatusColor(myStatus)}; box-shadow: 0 0 8px {getStatusColor(myStatus)};"
+    ></div>
     <span class="user-name">{myNickname} (Tú)</span>
   </button>
 
   {#each users as user}
     {#if user.id !== myId}
       <div class="user-row">
-        <div class="status-dot {user.status}"></div>
+        <div
+          class="status-dot"
+          style="background-color: {getStatusColor(user.status)}; box-shadow: 0 0 8px {getStatusColor(user.status)};"
+        ></div>
         <span class="user-name" style="color: {user.color}">{user.nickname}</span>
       </div>
     {/if}
@@ -47,13 +65,33 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   }
 
-  .panel-title {
-    font-size: 0.8rem;
-    color: #888;
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-bottom: 1px solid #444;
     padding-bottom: 5px;
     margin-bottom: 5px;
+  }
+
+  .panel-title {
+    font-size: 0.8rem;
+    color: #888;
     text-transform: uppercase;
+  }
+
+  .status-colors {
+    display: flex;
+    gap: 4px;
+  }
+
+  .status-color-picker {
+    width: 18px;
+    height: 18px;
+    border: none;
+    cursor: pointer;
+    background: none;
+    padding: 0;
   }
 
   .user-row {
@@ -84,19 +122,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: gray;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
     flex-shrink: 0;
-  }
-
-  .status-dot.online {
-    background-color: #00ff00;
-    box-shadow: 0 0 8px #00ff00;
-  }
-
-  .status-dot.busy {
-    background-color: #ff0000;
-    box-shadow: 0 0 8px #ff0000;
   }
 
   /* Responsive */

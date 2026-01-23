@@ -16,6 +16,18 @@
     clear: void;
     toggleSound: void;
   }>();
+
+  // Formato legible para el tiempo de fade
+  function formatFadeTime(ms: number): string {
+    const seconds = ms / 1000;
+    if (seconds < 60) return `${seconds.toFixed(0)}s`;
+    const minutes = seconds / 60;
+    if (minutes < 60) return `${minutes.toFixed(1)}m`;
+    const hours = minutes / 60;
+    return `${hours.toFixed(1)}h`;
+  }
+
+  $: fadeDuration = fadeSpeed * 10; // milisegundos
 </script>
 
 <div class="toolbar">
@@ -68,15 +80,18 @@
   </label>
 
   {#if fadeEnabled}
-    <input
-      type="range"
-      min="20"
-      max="500"
-      step="10"
-      bind:value={fadeSpeed}
-      title="Velocidad de desvanecimiento"
-      class="fade-slider"
-    />
+    <div class="fade-control">
+      <input
+        type="range"
+        min="50"
+        max="36000"
+        step="50"
+        bind:value={fadeSpeed}
+        title="Duración del fade"
+        class="fade-slider"
+      />
+      <span class="fade-time">{formatFadeTime(fadeDuration)}</span>
+    </div>
   {/if}
 
   <div class="separator"></div>
@@ -167,8 +182,20 @@
     cursor: pointer;
   }
 
+  .fade-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
   .fade-slider {
     width: 80px;
+  }
+
+  .fade-time {
+    color: #aaa;
+    font-size: 0.75rem;
+    min-width: 35px;
   }
 
   input[type="range"] {
