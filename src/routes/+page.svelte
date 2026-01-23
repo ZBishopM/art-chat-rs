@@ -28,6 +28,12 @@
   let ctxPerm: CanvasRenderingContext2D | null;
   let ctxFade: CanvasRenderingContext2D | null;
 
+  // Buffer para preservar dibujos al redimensionar
+  let bufferCanvas: HTMLCanvasElement;
+  let bufferCtx: CanvasRenderingContext2D | null;
+  let maxWidth = 0;
+  let maxHeight = 0;
+
   // Función auxiliar para cargar o usar default
   const load = <T>(key: string, def: T): T => {
     const val = localStorage.getItem(key);
@@ -134,6 +140,10 @@
       ctxPerm.fillRect(0, 0, canvasPermanent.width, canvasPermanent.height);
       ctxFade.clearRect(0, 0, canvasFade.width, canvasFade.height);
     }
+    // También limpiar el buffer
+    if (bufferCtx) {
+      bufferCtx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+    }
     const payload = JSON.stringify({ type: "clear", senderId: myId });
     await invoke("send_message", { msg: payload });
   }
@@ -173,6 +183,15 @@
       ctxPerm.beginPath();
       ctxPerm.arc(lastX, lastY, ctxPerm.lineWidth / 2, 0, Math.PI * 2);
       ctxPerm.fill();
+
+      // También dibujar en buffer
+      if (bufferCtx) {
+        bufferCtx.lineWidth = brushSize;
+        bufferCtx.fillStyle = selectedColor;
+        bufferCtx.beginPath();
+        bufferCtx.arc(lastX, lastY, bufferCtx.lineWidth / 2, 0, Math.PI * 2);
+        bufferCtx.fill();
+      }
     }
 
     const payload = JSON.stringify({
@@ -211,6 +230,17 @@
       ctxPerm.moveTo(lastX, lastY);
       ctxPerm.lineTo(currentX, currentY);
       ctxPerm.stroke();
+
+      // También dibujar en buffer
+      if (bufferCtx) {
+        bufferCtx.lineWidth = brushSize;
+        bufferCtx.strokeStyle = selectedColor;
+        bufferCtx.lineCap = "round";
+        bufferCtx.beginPath();
+        bufferCtx.moveTo(lastX, lastY);
+        bufferCtx.lineTo(currentX, currentY);
+        bufferCtx.stroke();
+      }
     }
 
     const payload = JSON.stringify({
@@ -233,9 +263,12 @@
         startTime: Date.now(), duration: data.duration || 1000,
       });
     } else if (ctxPerm) {
-      ctxPerm.lineWidth = data.size || 5;
-      ctxPerm.strokeStyle = data.color || "#00ff00";
-      ctxPerm.fillStyle = data.color || "#00ff00";
+      const size = data.size || 5;
+      const color = data.color || "#00ff00";
+
+      ctxPerm.lineWidth = size;
+      ctxPerm.strokeStyle = color;
+      ctxPerm.fillStyle = color;
       ctxPerm.beginPath();
 
       if (data.x0 === data.x1 && data.y0 === data.y1) {
@@ -247,30 +280,66 @@
         ctxPerm.lineTo(data.x1, data.y1);
         ctxPerm.stroke();
       }
+
+      // También dibujar en buffer
+      if (bufferCtx) {
+        bufferCtx.lineWidth = size;
+        bufferCtx.strokeStyle = color;
+        bufferCtx.fillStyle = color;
+        bufferCtx.beginPath();
+
+        if (data.x0 === data.x1 && data.y0 === data.y1) {
+          bufferCtx.arc(data.x0, data.y0, bufferCtx.lineWidth / 2, 0, Math.PI * 2);
+          bufferCtx.fill();
+        } else {
+          bufferCtx.lineCap = "round";
+          bufferCtx.moveTo(data.x0, data.y0);
+          bufferCtx.lineTo(data.x1, data.y1);
+          bufferCtx.stroke();
+        }
+      }
     }
   }
 
   // --- RESIZE ---
   function handleResize() {
-    const tempCanvasPerm = document.createElement("canvas");
-    const tempCanvasFade = document.createElement("canvas");
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
 
-    const saveLayer = (source: HTMLCanvasElement, temp: HTMLCanvasElement) => {
-      temp.width = source.width;
-      temp.height = source.height;
-      temp.getContext("2d")?.drawImage(source, 0, 0);
-    };
+    // Guardar contenido actual al buffer antes de redimensionar
+    if (bufferCtx && ctxPerm) {
+      bufferCtx.drawImage(canvasPermanent, 0, 0);
+    }
 
-    saveLayer(canvasPermanent, tempCanvasPerm);
-    saveLayer(canvasFade, tempCanvasFade);
+    // Expandir buffer si la nueva ventana es más grande
+    if (newWidth > maxWidth || newHeight > maxHeight) {
+      const oldMaxWidth = maxWidth;
+      const oldMaxHeight = maxHeight;
+      maxWidth = Math.max(maxWidth, newWidth);
+      maxHeight = Math.max(maxHeight, newHeight);
 
-    canvasPermanent.width = window.innerWidth;
-    canvasPermanent.height = window.innerHeight;
-    canvasFade.width = window.innerWidth;
-    canvasFade.height = window.innerHeight;
+      // Crear nuevo buffer más grande preservando contenido
+      const tempBuffer = document.createElement("canvas");
+      tempBuffer.width = oldMaxWidth || newWidth;
+      tempBuffer.height = oldMaxHeight || newHeight;
+      tempBuffer.getContext("2d")?.drawImage(bufferCanvas, 0, 0);
 
-    ctxPerm?.drawImage(tempCanvasPerm, 0, 0);
-    ctxFade?.drawImage(tempCanvasFade, 0, 0);
+      bufferCanvas.width = maxWidth;
+      bufferCanvas.height = maxHeight;
+      bufferCtx = bufferCanvas.getContext("2d");
+      bufferCtx?.drawImage(tempBuffer, 0, 0);
+    }
+
+    // Redimensionar canvas visibles
+    canvasPermanent.width = newWidth;
+    canvasPermanent.height = newHeight;
+    canvasFade.width = newWidth;
+    canvasFade.height = newHeight;
+
+    // Restaurar desde el buffer
+    if (bufferCtx && ctxPerm) {
+      ctxPerm.drawImage(bufferCanvas, 0, 0);
+    }
   }
 
   // --- INICIALIZACIÓN ---
@@ -282,6 +351,14 @@
     ctxFade = canvasFade.getContext("2d");
     canvasFade.width = window.innerWidth;
     canvasFade.height = window.innerHeight;
+
+    // Inicializar buffer para preservar dibujos
+    maxWidth = window.innerWidth;
+    maxHeight = window.innerHeight;
+    bufferCanvas = document.createElement("canvas");
+    bufferCanvas.width = maxWidth;
+    bufferCanvas.height = maxHeight;
+    bufferCtx = bufferCanvas.getContext("2d");
 
     notificationAudio = new Audio('/notify.mp3');
     notificationAudio.volume = 0.5;
@@ -316,6 +393,9 @@
         } else if (data.type === "clear" && ctxPerm && ctxFade) {
           ctxPerm.clearRect(0, 0, canvasPermanent.width, canvasPermanent.height);
           ctxFade.clearRect(0, 0, canvasFade.width, canvasFade.height);
+          if (bufferCtx) {
+            bufferCtx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+          }
         }
       } catch (e) {
         console.error("Error JSON:", e);
