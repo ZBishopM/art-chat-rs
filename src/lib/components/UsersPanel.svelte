@@ -38,11 +38,13 @@
     top: 20px;
     right: 20px;
     width: 180px;
-    background: rgba(0, 0, 0, 0.8);
+    background: #1a1a1a;
     border-radius: 8px;
     padding: 10px;
     color: white;
     pointer-events: auto;
+    border: 1px solid #444;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   }
 
   .panel-title {

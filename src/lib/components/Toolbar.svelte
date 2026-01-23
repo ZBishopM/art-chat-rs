@@ -10,6 +10,7 @@
   export let fadeEnabled: boolean;
   export let fadeSpeed: number;
   export let connectionState: ConnectionState;
+  export let backgroundColor: string;
 
   const dispatch = createEventDispatcher<{
     clear: void;
@@ -35,7 +36,8 @@
 
   <div class="separator"></div>
 
-  <input type="color" bind:value={selectedColor} title="Color" class="color-picker" />
+  <input type="color" bind:value={selectedColor} title="Color de pincel" class="color-picker" />
+  <input type="color" bind:value={backgroundColor} title="Color de fondo" class="color-picker bg-picker" />
 
   <div class="separator"></div>
 
@@ -87,26 +89,28 @@
     position: absolute;
     top: 20px;
     left: 20px;
-    background: rgba(0, 0, 0, 0.8);
+    background: #1a1a1a;
     padding: 10px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 10px;
     pointer-events: auto;
+    border: 1px solid #444;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   }
 
   .separator {
     width: 1px;
     height: 20px;
-    background: #555;
+    background: #444;
   }
 
   .nick-input {
     width: 80px;
-    background: #333;
-    color: cyan;
-    border: 1px solid #555;
+    background: #2a2a2a;
+    color: #00ffff;
+    border: 1px solid #444;
     padding: 5px;
     border-radius: 4px;
     text-align: center;
@@ -125,6 +129,11 @@
     height: 30px;
     cursor: pointer;
     background: none;
+  }
+
+  .bg-picker {
+    border: 2px dashed #888;
+    border-radius: 4px;
   }
 
   .brush-size {

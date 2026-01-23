@@ -51,6 +51,7 @@
   let brushSize = load("artchat_size", 5);
   let fadeEnabled = load("artchat_fade", false);
   let fadeSpeed = load("artchat_fadespeed", 50);
+  let backgroundColor = load("artchat_bgcolor", "#1a1a1a");
 
   // Audio
   let notificationAudio: HTMLAudioElement;
@@ -71,10 +72,16 @@
   $: localStorage.setItem("artchat_size", JSON.stringify(brushSize));
   $: localStorage.setItem("artchat_fade", JSON.stringify(fadeEnabled));
   $: localStorage.setItem("artchat_fadespeed", JSON.stringify(fadeSpeed));
+  $: localStorage.setItem("artchat_bgcolor", JSON.stringify(backgroundColor));
 
   // Fallback: si recibimos usuarios, estamos conectados
   $: if (connectedUsers.length > 0 && connectionState !== 'connected') {
     connectionState = 'connected';
+  }
+
+  // Aplicar color de fondo
+  $: if (typeof document !== 'undefined') {
+    document.body.style.backgroundColor = backgroundColor;
   }
 
   // --- BUCLE DE ANIMACIÓN ---
@@ -136,13 +143,14 @@
 
   async function handleClearCanvas() {
     if (ctxPerm && ctxFade) {
-      ctxPerm.fillStyle = "#1a1a1a";
+      ctxPerm.fillStyle = backgroundColor;
       ctxPerm.fillRect(0, 0, canvasPermanent.width, canvasPermanent.height);
       ctxFade.clearRect(0, 0, canvasFade.width, canvasFade.height);
     }
     // También limpiar el buffer
     if (bufferCtx) {
-      bufferCtx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+      bufferCtx.fillStyle = backgroundColor;
+      bufferCtx.fillRect(0, 0, bufferCanvas.width, bufferCanvas.height);
     }
     const payload = JSON.stringify({ type: "clear", senderId: myId });
     await invoke("send_message", { msg: payload });
@@ -432,7 +440,7 @@
 
 <main>
   <!-- Canvas -->
-  <div class="canvas-wrapper">
+  <div class="canvas-wrapper" style="background-color: {backgroundColor}">
     <canvas bind:this={canvasPermanent}></canvas>
     <canvas
       bind:this={canvasFade}
@@ -451,6 +459,7 @@
     bind:brushSize
     bind:fadeEnabled
     bind:fadeSpeed
+    bind:backgroundColor
     {connectionState}
     on:clear={handleClearCanvas}
     on:toggleSound={() => soundEnabled = !soundEnabled}
@@ -472,14 +481,12 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background-color: #1a1a1a;
   }
 
   .canvas-wrapper {
     position: relative;
     width: 100vw;
     height: 100vh;
-    background-color: #1a1a1a;
   }
 
   canvas {
