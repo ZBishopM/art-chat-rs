@@ -50,7 +50,7 @@ pub fn run() {
 
                 // --- TU IP AQUÍ ---
                 // Asegúrate de que esta IP es la correcta de tu laptop
-                let url = Url::parse("ws://100.48.213.255:8080").expect("URL inválida");
+                let url = Url::parse("wss://artchat.danassistantassistant.website").expect("URL inválida");
                 // ------------------
 
                 // FIX 2: Pasamos 'url.as_str()' en vez de 'url' directo
