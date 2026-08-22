@@ -52,6 +52,7 @@
   let fadeEnabled = load("artchat_fade", false);
   let fadeSpeed = load("artchat_fadespeed", 50);
   let backgroundColor = load("artchat_bgcolor", "#1a1a1a");
+  let isErasing = false;
   let onlineColor = load("artchat_online_color", "#00ff00");
   let busyColor = load("artchat_busy_color", "#ff0000");
 
@@ -243,7 +244,24 @@
     lastX = pos.x;
     lastY = pos.y;
 
-    if (fadeEnabled) {
+    if (isErasing) {
+      if (ctxPerm) {
+        ctxPerm.globalCompositeOperation = "destination-out";
+        ctxPerm.lineWidth = brushSize;
+        ctxPerm.beginPath();
+        ctxPerm.arc(lastX, lastY, ctxPerm.lineWidth / 2, 0, Math.PI * 2);
+        ctxPerm.fill();
+        ctxPerm.globalCompositeOperation = "source-over";
+      }
+      if (bufferCtx) {
+        bufferCtx.globalCompositeOperation = "destination-out";
+        bufferCtx.lineWidth = brushSize;
+        bufferCtx.beginPath();
+        bufferCtx.arc(lastX, lastY, bufferCtx.lineWidth / 2, 0, Math.PI * 2);
+        bufferCtx.fill();
+        bufferCtx.globalCompositeOperation = "source-over";
+      }
+    } else if (fadeEnabled) {
       fadingStrokes.push({
         x0: lastX, y0: lastY, x1: lastX, y1: lastY,
         color: selectedColor, size: brushSize,
@@ -271,7 +289,9 @@
       type: "draw", senderId: myId,
       x0: lastX, y0: lastY, x1: lastX, y1: lastY,
       color: selectedColor, size: brushSize,
-      ephemeral: fadeEnabled, duration: fadeEnabled ? fadeSpeed * 10 : 0,
+      ephemeral: isErasing ? false : fadeEnabled,
+      duration: (!isErasing && fadeEnabled) ? fadeSpeed * 10 : 0,
+      erase: isErasing,
     });
     invoke("send_message", { msg: payload });
   }
@@ -288,7 +308,28 @@
     const currentX = pos.x;
     const currentY = pos.y;
 
-    if (fadeEnabled) {
+    if (isErasing) {
+      if (ctxPerm) {
+        ctxPerm.globalCompositeOperation = "destination-out";
+        ctxPerm.lineWidth = brushSize;
+        ctxPerm.lineCap = "round";
+        ctxPerm.beginPath();
+        ctxPerm.moveTo(lastX, lastY);
+        ctxPerm.lineTo(currentX, currentY);
+        ctxPerm.stroke();
+        ctxPerm.globalCompositeOperation = "source-over";
+      }
+      if (bufferCtx) {
+        bufferCtx.globalCompositeOperation = "destination-out";
+        bufferCtx.lineWidth = brushSize;
+        bufferCtx.lineCap = "round";
+        bufferCtx.beginPath();
+        bufferCtx.moveTo(lastX, lastY);
+        bufferCtx.lineTo(currentX, currentY);
+        bufferCtx.stroke();
+        bufferCtx.globalCompositeOperation = "source-over";
+      }
+    } else if (fadeEnabled) {
       fadingStrokes.push({
         x0: lastX, y0: lastY, x1: currentX, y1: currentY,
         color: selectedColor, size: brushSize,
@@ -320,7 +361,9 @@
       type: "draw", senderId: myId,
       x0: lastX, y0: lastY, x1: currentX, y1: currentY,
       color: selectedColor, size: brushSize,
-      ephemeral: fadeEnabled, duration: fadeEnabled ? fadeSpeed * 10 : 0,
+      ephemeral: isErasing ? false : fadeEnabled,
+      duration: (!isErasing && fadeEnabled) ? fadeSpeed * 10 : 0,
+      erase: isErasing,
     });
 
     lastX = currentX;
@@ -338,7 +381,9 @@
     } else if (ctxPerm) {
       const size = data.size || 5;
       const color = data.color || "#00ff00";
+      const erasing = !!data.erase;
 
+      ctxPerm.globalCompositeOperation = erasing ? "destination-out" : "source-over";
       ctxPerm.lineWidth = size;
       ctxPerm.strokeStyle = color;
       ctxPerm.fillStyle = color;
@@ -353,9 +398,11 @@
         ctxPerm.lineTo(data.x1, data.y1);
         ctxPerm.stroke();
       }
+      ctxPerm.globalCompositeOperation = "source-over";
 
       // También dibujar en buffer
       if (bufferCtx) {
+        bufferCtx.globalCompositeOperation = erasing ? "destination-out" : "source-over";
         bufferCtx.lineWidth = size;
         bufferCtx.strokeStyle = color;
         bufferCtx.fillStyle = color;
@@ -370,6 +417,7 @@
           bufferCtx.lineTo(data.x1, data.y1);
           bufferCtx.stroke();
         }
+        bufferCtx.globalCompositeOperation = "source-over";
       }
     }
   }
@@ -581,6 +629,7 @@
     bind:fadeEnabled
     bind:fadeSpeed
     bind:backgroundColor
+    bind:isErasing
     {connectionState}
     on:clear={handleClearCanvas}
     on:toggleSound={() => soundEnabled = !soundEnabled}

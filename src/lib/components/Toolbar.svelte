@@ -11,6 +11,7 @@
   export let fadeSpeed: number;
   export let connectionState: ConnectionState;
   export let backgroundColor: string;
+  export let isErasing: boolean;
 
   const dispatch = createEventDispatcher<{
     clear: void;
@@ -61,6 +62,17 @@
     title="Grosor"
   />
   <span class="brush-size">{brushSize}</span>
+
+  <div class="separator"></div>
+
+  <button
+    on:click={() => (isErasing = !isErasing)}
+    title={isErasing ? "Volver a dibujar" : "Borrador"}
+    class="erase-btn"
+    class:active={isErasing}
+  >
+    🧽
+  </button>
 
   <div class="separator"></div>
 
@@ -171,6 +183,20 @@
 
   .clear-btn:hover {
     background: #e00;
+  }
+
+  .erase-btn {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  .erase-btn.active {
+    background: #0af;
+    border-color: #0af;
   }
 
   .fade-label {
