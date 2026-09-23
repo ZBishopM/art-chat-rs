@@ -28,3 +28,7 @@ Needs [`art-chat-server`](../art-chat-server) reachable at the URL in `lib.rs` (
 npm run check   # svelte-kit sync + svelte-check
 npm run build   # production build
 ```
+
+## CI
+
+`.github/workflows/ci.yml`, on every push to `main` and every PR: `npm ci` → `npm run check` → `npm run build` → Tauri's Ubuntu system deps → `cargo check --locked` in `src-tauri/`. The frontend build goes first because `generate_context!` needs `frontendDist` to exist. No deploy: it's a desktop app. Re-run from Actions → CI → Run workflow.

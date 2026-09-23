@@ -1,0 +1,42 @@
+name: CI
+
+# App de escritorio: no hay nada que desplegar. Comprueba que el frontend y el
+# lado Rust compilan en cada push a main y en cada PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: svelte-check + build + cargo check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+      # Antes de cargo: generate_context! exige que exista frontendDist.
+      - run: npm run build
+
+      - name: Dependencias de sistema de Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: cargo check --locked
+        working-directory: src-tauri
