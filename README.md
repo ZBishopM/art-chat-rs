@@ -16,6 +16,16 @@ npm run tauri dev    # full desktop app — this is the real thing to test again
 
 Needs [`art-chat-server`](../art-chat-server) reachable at the URL in `lib.rs` (run it locally on `:8080` and point `lib.rs` at `ws://localhost:8080` for local multiplayer testing).
 
+## Native alternative (egui)
+
+`egui/` is a second client for the same relay: native egui, one portable `.exe` (~7 MB), no WebView. It speaks the same protocol, so both clients share a room. It's here to compare against the Tauri app (feel and looks). See `egui/README.md`:
+
+```
+cd egui
+cargo build --release   # target\release\artchat.exe
+cargo test
+```
+
 ## Structure
 
 - `src/routes/+page.svelte` — canvas, drawing logic (permanent layer + fading-stroke layer), WS message handling
