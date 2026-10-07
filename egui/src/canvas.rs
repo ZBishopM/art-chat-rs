@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 
 use egui::{Color32, ColorImage, Context, Painter, Pos2, Rect, TextureHandle, TextureOptions, Vec2};
 
-/// Lado máximo del lienzo en puntos lógicos. Un trazo fuera de esto se recorta.
-const MAX_PTS: f32 = 4096.0;
+/// Lado máximo del lienzo en puntos lógicos. Un trazo fuera de esto se recorta, y la vista no
+/// se desplaza más allá.
+pub const MAX_PTS: f32 = 4096.0;
 /// Se crece de 128 en 128 texels: así arrastrar el borde de la ventana no realoca por píxel.
 const PASO: usize = 128;
 
@@ -156,8 +157,12 @@ impl Canvas {
 
     /// Pinta el lienzo con su esquina superior izquierda en `origen`.
     pub fn paint(&self, painter: &Painter, origen: Pos2) {
+        self.paint_en(painter, Rect::from_min_size(origen, self.size_pts()));
+    }
+
+    /// Pinta el lienzo entero dentro de `r`, a la escala que salga (el minimapa).
+    pub fn paint_en(&self, painter: &Painter, r: Rect) {
         if let Some(t) = &self.tex {
-            let r = Rect::from_min_size(origen, self.size_pts());
             painter.image(t.id(), r, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
         }
     }

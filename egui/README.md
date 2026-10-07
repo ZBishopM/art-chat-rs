@@ -14,6 +14,17 @@ Para probar contra un servidor de verdad (`node chat-server.js` con `PORT=18480`
 
 `ARTCHAT_URL` cambia el servidor al que se conecta el programa (por defecto el de producción).
 
+## Moverse por el lienzo
+
+El lienzo mide hasta 4096 × 4096 puntos, más que la ventana:
+
+- **Arrastrar** con el botón del medio, o con **Espacio + clic**.
+- **Rueda** o **touchpad**.
+- **Minimapa** (abajo a la derecha): enseña el lienzo entero, también lo que otros dibujan fuera de la vista; pulsar o arrastrar en él lleva la vista ahí.
+- **Inicio** vuelve a la esquina.
+
+Los trazos viajan en coordenadas del lienzo, no de la pantalla. El cliente Tauri no se desplaza: ve solo lo que cabe en su ventana desde la esquina.
+
 ## Qué hay en cada archivo
 
 | archivo | qué |
@@ -24,7 +35,7 @@ Para probar contra un servidor de verdad (`node chat-server.js` con `PORT=18480`
 | `theme.rs` | identidad de windots: paleta cálida, JetBrains Mono Nerd Font (incrustada), radios 14/8 |
 | `audio.rs` | los tres MP3 con MCI de Windows, sin motor de audio |
 | `settings.rs` | `%APPDATA%\ArtChat\settings.json` y `lienzo-x1.png` (el dibujo sobrevive al cierre) |
-| `app.rs` | la ventana: lienzo a sangre y tres islas flotantes |
+| `app.rs` | la ventana: lienzo a sangre (con su vista desplazable) y cuatro islas flotantes, la cuarta el minimapa |
 
 ## Decisiones que conviene no deshacer
 

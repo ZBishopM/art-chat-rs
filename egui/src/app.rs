@@ -7,12 +7,12 @@ use std::time::{Duration, Instant};
 use egui::emath::TSTransform;
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    pos2, vec2, Align, Align2, Color32, Context, CursorIcon, FontId, Frame, Id, LayerId, Layout, Margin, Order, Pos2,
-    Response, RichText, Rounding, ScrollArea, Sense, Shadow, Stroke, TextEdit, Ui,
+    pos2, vec2, Align, Align2, Color32, Context, CursorIcon, FontId, Frame, Id, Key, LayerId, Layout, Margin, Order,
+    PointerButton, Pos2, Rect, Response, RichText, Rounding, ScrollArea, Sense, Shadow, Stroke, TextEdit, Ui, Vec2,
 };
 
 use crate::audio::{Sfx, Sonido};
-use crate::canvas::{Canvas, Efimero};
+use crate::canvas::{Canvas, Efimero, MAX_PTS};
 use crate::network::{self, Event, Net};
 use crate::settings::{self, Settings};
 use crate::theme::{self, col, col_a, icono, ACCENT, ACCENT_OK, ACCENT_WARN, ATARDECER, BAR_BG, HIGHLIGHT, SUBTEXT, SURFACE, TEXT};
@@ -23,6 +23,8 @@ const URL: &str = "wss://artchat.danassistantassistant.website";
 const ENFRIAR_ZUMBIDO: Duration = Duration::from_secs(3);
 const DURA_SACUDIDA: f32 = 0.5;
 const MAX_EFIMEROS: usize = 30_000;
+/// Lado mayor del minimapa, en puntos.
+const MINIMAPA: f32 = 170.0;
 
 #[derive(Clone, PartialEq)]
 enum Conn {
@@ -68,6 +70,13 @@ pub struct App {
     borrador: bool,
     /// Último punto del trazo en curso, en coordenadas del lienzo.
     trazando: Option<Pos2>,
+    /// Qué punto del lienzo queda en la esquina superior izquierda de la ventana: el lienzo es
+    /// más grande que ella (hasta MAX_PTS) y se recorre arrastrando o con el minimapa.
+    vista: Vec2,
+    /// Tamaño de la ventana de dibujo en el último fotograma (lo usa el minimapa).
+    ver: Vec2,
+    /// Se está desplazando la vista con un arrastre (botón del medio, o Espacio + clic).
+    paneo: bool,
     lienzo_guardado: Instant,
 
     lineas: Vec<Linea>,
@@ -104,6 +113,9 @@ impl App {
             efimeros: Vec::new(),
             borrador: false,
             trazando: None,
+            vista: Vec2::ZERO,
+            ver: Vec2::ZERO,
+            paneo: false,
             lienzo_guardado: Instant::now(),
             lineas: Vec::new(),
             entrada: String::new(),
@@ -270,16 +282,53 @@ impl App {
         self.enviar(Out::Clear { sender_id: self.s.id.clone() });
     }
 
+    /// La vista dentro del lienzo: ni antes de su esquina ni más allá de MAX_PTS.
+    fn encajar_vista(&mut self) {
+        let max = (Vec2::splat(MAX_PTS) - self.ver).max(Vec2::ZERO);
+        self.vista = self.vista.clamp(Vec2::ZERO, max);
+    }
+
     fn lienzo_ui(&mut self, ui: &mut Ui) {
         let ctx = ui.ctx().clone();
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
-        let origen = resp.rect.min;
-        self.lienzo.ensure(resp.rect.width(), resp.rect.height());
+        self.ver = resp.rect.size();
 
-        let (pulsado, abajo, eventos, ptr) =
-            ctx.input(|i| (i.pointer.primary_pressed(), i.pointer.primary_down(), i.events.clone(), i.pointer.hover_pos()));
+        let (pulsado, abajo, eventos, ptr, medio, espacio, rueda, mueve, inicio) = ctx.input(|i| {
+            (
+                i.pointer.primary_pressed(),
+                i.pointer.primary_down(),
+                i.events.clone(),
+                i.pointer.hover_pos(),
+                i.pointer.button_down(PointerButton::Middle),
+                i.key_down(Key::Space),
+                i.smooth_scroll_delta,
+                i.pointer.delta(),
+                i.key_pressed(Key::Home),
+            )
+        });
+        // Desplazar la vista: arrastrando con el botón del medio o con Espacio + clic (como en los
+        // programas de dibujo), con la rueda o el touchpad, o con el minimapa. Inicio vuelve a la
+        // esquina. El teclado solo cuenta si no se está escribiendo (nick, chat).
+        let teclas = !ctx.wants_keyboard_input();
+        let con_espacio = espacio && teclas;
+        let arrastre = medio || (con_espacio && abajo);
+        self.paneo = arrastre && (self.paneo || resp.hovered());
+        if self.paneo {
+            self.vista -= mueve;
+        }
+        if resp.hovered() {
+            self.vista -= rueda;
+        }
+        if inicio && teclas {
+            self.vista = Vec2::ZERO;
+        }
+        self.encajar_vista();
+        // El lienzo cubre lo que se ve: se dibuja en coordenadas del lienzo (las que viajan).
+        self.lienzo.ensure(self.vista.x + self.ver.x, self.vista.y + self.ver.y);
+        let origen = resp.rect.min - self.vista;
+
         let local = |p: Pos2| p - origen.to_vec2();
-        if pulsado && resp.hovered() {
+        if pulsado && resp.hovered() && !con_espacio && !self.paneo {
             if let Some(p) = ptr.map(local) {
                 self.trazar(p, p); // el punto de la pulsación, como el `arc` del cliente Tauri
                 self.trazando = Some(p);
@@ -312,6 +361,9 @@ impl App {
         }
 
         self.lienzo.flush(&ctx);
+        if self.paneo || rueda != Vec2::ZERO {
+            ctx.request_repaint();
+        }
         painter.rect_filled(resp.rect, 0.0, col(self.s.bg));
         self.lienzo.paint(&painter, origen);
         let ahora = Instant::now();
@@ -323,8 +375,13 @@ impl App {
             ctx.request_repaint();
         }
 
-        // El cursor es un aro del tamaño del pincel: se ve dónde va a caer el trazo.
-        if resp.hovered() {
+        // El cursor es un aro del tamaño del pincel: se ve dónde va a caer el trazo. Desplazando,
+        // una mano.
+        if self.paneo {
+            ctx.set_cursor_icon(CursorIcon::Grabbing);
+        } else if resp.hovered() && con_espacio {
+            ctx.set_cursor_icon(CursorIcon::Grab);
+        } else if resp.hovered() {
             ctx.set_cursor_icon(CursorIcon::None);
             if let Some(p) = ptr {
                 let r = (self.s.size * 0.5).max(1.5);
@@ -411,6 +468,38 @@ impl App {
                 });
             });
         });
+    }
+
+    /// El minimapa, abajo a la derecha: el lienzo entero en pequeño (también lo que otros dibujan
+    /// fuera de la vista) y un marco con lo que se ve. Pulsar o arrastrar en él lleva la vista ahí.
+    fn minimapa(&mut self, ctx: &Context) {
+        let mundo = self.lienzo.size_pts();
+        if mundo.x <= 0.0 || mundo.y <= 0.0 {
+            return;
+        }
+        let k = MINIMAPA / mundo.x.max(mundo.y);
+        egui::Area::new(Id::new("minimapa"))
+            .order(Order::Foreground)
+            .anchor(Align2::RIGHT_BOTTOM, vec2(-14.0, -14.0))
+            .show(ctx, |ui| {
+                Self::isla().inner_margin(Margin::same(6.0)).show(ui, |ui| {
+                    let (r, resp) = ui.allocate_exact_size(mundo * k, Sense::click_and_drag());
+                    let p = ui.painter_at(r);
+                    p.rect_filled(r, Rounding::same(theme::RADIO_FILA), col(self.s.bg));
+                    self.lienzo.paint_en(&p, r);
+                    let marco = Rect::from_min_size(r.min + self.vista * k, self.ver * k).intersect(r);
+                    p.rect_filled(marco, 0.0, col_a(ACCENT, 0.12));
+                    p.rect_stroke(marco, 0.0, Stroke::new(1.5_f32, col(ACCENT)));
+                    if resp.is_pointer_button_down_on() {
+                        if let Some(pos) = resp.interact_pointer_pos() {
+                            self.vista = (pos - r.min) / k - self.ver * 0.5;
+                            self.encajar_vista();
+                        }
+                    }
+                    resp.on_hover_cursor(CursorIcon::Move)
+                        .on_hover_text("Arrastra para moverte por el lienzo (también: botón del medio, Espacio + arrastrar, rueda; Inicio vuelve)");
+                });
+            });
     }
 
     fn confirmar_nick(&mut self) {
@@ -564,7 +653,7 @@ impl App {
     /// sacude el contenido, no la ventana: con un gestor de ventanas en mosaico la ventana
     /// no se deja mover.
     fn sacudir(&mut self, ctx: &Context) {
-        let ids = [Id::new("barra"), Id::new("usuarios"), Id::new("chat")];
+        let ids = [Id::new("barra"), Id::new("usuarios"), Id::new("chat"), Id::new("minimapa")];
         let pon = |dx: f32| {
             let t = TSTransform::from_translation(vec2(dx, 0.0));
             ctx.set_transform_layer(LayerId::background(), t);
@@ -653,6 +742,7 @@ impl App {
         self.barra(ctx);
         self.usuarios_ui(ctx);
         self.chat_ui(ctx);
+        self.minimapa(ctx);
 
         // Preferencias: a disco 0,4 s después del último cambio, no en cada fotograma.
         if self.s != self.guardado {
@@ -832,6 +922,44 @@ mod tests {
         assert_eq!((primero.x0, primero.y0, primero.x1, primero.y1), (600.0, 400.0, 600.0, 400.0));
         assert_eq!((ultimo.x1, ultimo.y1), (p.x, p.y));
         assert!(recibidos.iter().all(|s| !s.ephemeral && !s.erase && s.size == Some(5.0) && s.color.as_deref() == Some("#e0a35c")));
+    }
+
+    /// Arrastrar con el botón del medio mueve la vista; lo que se dibuja cae en el lienzo donde se
+    /// ve (no en la esquina), y pulsar en el minimapa lleva la vista ahí. Sin servidor.
+    #[test]
+    fn desplazar_dibujar_donde_se_ve_y_volver_con_el_minimapa() {
+        std::env::set_var("APPDATA", std::env::temp_dir().join("artchat-prueba"));
+        let ctx = Context::default();
+        let mut app = App::con(&ctx, Settings::default(), "ws://127.0.0.1:9".into());
+        let pulsa = |pos, button, pressed| Ev::PointerButton { pos, button, pressed, modifiers: Default::default() };
+
+        // Arrastrar hacia arriba a la izquierda lleva la vista hacia abajo a la derecha.
+        let a = pos2(600.0, 400.0);
+        fotograma(&ctx, &mut app, vec![Ev::PointerMoved(a)]);
+        fotograma(&ctx, &mut app, vec![]);
+        fotograma(&ctx, &mut app, vec![pulsa(a, PointerButton::Middle, true)]);
+        let b = a - vec2(300.0, 200.0);
+        fotograma(&ctx, &mut app, vec![Ev::PointerMoved(b)]);
+        fotograma(&ctx, &mut app, vec![pulsa(b, PointerButton::Middle, false)]);
+        assert_eq!(app.vista, vec2(300.0, 200.0));
+
+        // Un punto en (700, 500) de la pantalla cae en (1000, 700) del lienzo.
+        let p = pos2(700.0, 500.0);
+        fotograma(&ctx, &mut app, vec![Ev::PointerMoved(p)]);
+        fotograma(&ctx, &mut app, vec![]);
+        fotograma(&ctx, &mut app, vec![pulsa(p, PointerButton::Primary, true)]);
+        fotograma(&ctx, &mut app, vec![pulsa(p, PointerButton::Primary, false)]);
+        assert!(app.lienzo.pixel(1000, 700).a() > 200, "no hay tinta donde se ve");
+        assert_eq!(app.lienzo.pixel(700, 500).a(), 0, "pintó en la pantalla, no en el lienzo");
+
+        // Pulsar en la esquina del minimapa vuelve a la esquina del lienzo.
+        let mapa = ctx.memory(|m| m.area_rect(Id::new("minimapa"))).expect("no hay minimapa");
+        let esquina = mapa.min + vec2(8.0, 8.0);
+        fotograma(&ctx, &mut app, vec![Ev::PointerMoved(esquina)]);
+        fotograma(&ctx, &mut app, vec![]);
+        fotograma(&ctx, &mut app, vec![pulsa(esquina, PointerButton::Primary, true)]);
+        fotograma(&ctx, &mut app, vec![pulsa(esquina, PointerButton::Primary, false)]);
+        assert_eq!(app.vista, Vec2::ZERO);
     }
 
     #[test]
